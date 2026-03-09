@@ -50,8 +50,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun DayPickerDemo(modifier: Modifier = Modifier) {
-    var piggyBankBalance by remember { mutableStateOf(0L) }
-    var piggyBankBalanceText by remember { mutableStateOf("0.00") }
+    var piggyBankBalance by remember { mutableStateOf(170L) }
+    var piggyBankBalanceText by remember {
+        mutableStateOf(String.format("%.2f", piggyBankBalance / 100.0))
+    }
     var topUpValue by remember { mutableStateOf(0L) }
     var topUpValueText by remember { mutableStateOf("0.00") }
     var withdrawValue by remember { mutableStateOf(0L) }
@@ -99,7 +101,7 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
             Text("Pick Day")
         }
         Text(
-            text = "suggested top-up: £${String.format("%.2f", (piggyBankBalance-totalPennies) / 100.0)}",
+            text = "suggested top-up: £${String.format("%.2f", (totalPennies-piggyBankBalance) / 100.0)}",
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(8.dp)
         )
