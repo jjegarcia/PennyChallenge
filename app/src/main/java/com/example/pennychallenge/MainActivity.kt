@@ -1,6 +1,6 @@
 package com.example.pennychallenge
 
-import android.R
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,15 +22,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import com.example.penny.DayPickerDialog
 import com.example.penny.calculateDaysSince
 import com.example.penny.calculateSavingsFunctional
 import com.example.penny.formatDate
 import com.example.pennychallenge.ui.theme.PennyChallengeTheme
+import java.util.Locale
 import kotlin.math.roundToLong
+
+private const val PIGGY_BANK_PREFS = "piggy_bank_prefs"
+private const val PIGGY_BANK_BALANCE_KEY = "piggy_bank_balance"
+private const val DEFAULT_PIGGY_BANK_BALANCE = 170L
+
+private fun formatCurrencyText(pence: Long): String = String.format(Locale.UK, "%.2f", pence / 100.0)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +48,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PennyChallengeTheme() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    DayPickerDemo(
+                    PennyChallengePage(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -49,10 +58,17 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun DayPickerDemo(modifier: Modifier = Modifier) {
-    var piggyBankBalance by remember { mutableStateOf(170L) }
+fun PennyChallengePage(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val sharedPreferences = remember(context) {
+        context.getSharedPreferences(PIGGY_BANK_PREFS, Context.MODE_PRIVATE)
+    }
+    val storedPiggyBankBalance = remember(sharedPreferences) {
+        sharedPreferences.getLong(PIGGY_BANK_BALANCE_KEY, DEFAULT_PIGGY_BANK_BALANCE)
+    }
+    var piggyBankBalance by remember { mutableStateOf(storedPiggyBankBalance) }
     var piggyBankBalanceText by remember {
-        mutableStateOf(String.format("%.2f", piggyBankBalance / 100.0))
+        mutableStateOf(formatCurrencyText(storedPiggyBankBalance))
     }
     var topUpValue by remember { mutableStateOf(0L) }
     var topUpValueText by remember { mutableStateOf("0.00") }
@@ -71,6 +87,21 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
             )
         )
     }
+    val formatCurrencyText = formatCurrencyText(totalPennies - piggyBankBalance)
+    fun updateBalance() {
+        sharedPreferences.edit {
+            putLong(PIGGY_BANK_BALANCE_KEY, piggyBankBalance)
+        }
+        piggyBankBalanceText = formatCurrencyText(piggyBankBalance)
+    }
+    fun topUpBalance() {
+        piggyBankBalance += topUpValue
+        updateBalance()
+    }
+ fun withdrawBalance() {
+        piggyBankBalance -= withdrawValue
+        updateBalance()
+    }
 
     Column(
         modifier = modifier.fillMaxSize(),
@@ -85,12 +116,12 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
 
         if (selectedDateMillis != null) {
             Text(
-                text = "add today: £${String.format("%.2f", numberOfDays / 100.0)}",
+                text = "add today: £${formatCurrencyText(numberOfDays.toLong())}",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(8.dp)
             )
             Text(
-                text = "expected to date : £${String.format("%.2f", totalPennies / 100.0)}",
+                text = "expected to date : £${formatCurrencyText(totalPennies)}",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(8.dp)
@@ -101,11 +132,11 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
             Text("Pick Day")
         }
         Text(
-            text = "suggested top-up: £${String.format("%.2f", (totalPennies-piggyBankBalance) / 100.0)}",
+            text = "suggested top-up: £$formatCurrencyText",
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(8.dp)
         )
-             TextField(
+        TextField(
             value = topUpValueText,
             onValueChange = { input ->
                 topUpValueText = input
@@ -119,10 +150,10 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(8.dp)
         )
 
-        Button(onClick = { }) {
+        Button(onClick = ::topUpBalance) {
             Text("Top-Up")
         }
-             TextField(
+        TextField(
             value = withdrawValueText,
             onValueChange = { input ->
                 withdrawValueText = input
@@ -136,10 +167,10 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(8.dp)
         )
 
-        Button(onClick = { }) {
+        Button(onClick = ::withdrawBalance) {
             Text("Withdraw")
         }
-             TextField(
+        TextField(
             value = piggyBankBalanceText,
             onValueChange = { input ->
                 piggyBankBalanceText = input
@@ -153,12 +184,8 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(8.dp)
         )
 
-        Button(onClick = { }) {
-            Text("Update")
-        }
-
         Text(
-            text = "total balance : £${String.format("%.2f", piggyBankBalance / 100.0)}",
+            text = "total balance : £${formatCurrencyText(piggyBankBalance)}",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(8.dp)
@@ -182,8 +209,8 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 
-fun DayPickerDemoPreview() {
+fun PennyChallengePagePreview() {
     PennyChallengeTheme() {
-        DayPickerDemo()
+        PennyChallengePage()
     }
 }
