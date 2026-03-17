@@ -1,6 +1,5 @@
 package com.example.pennychallenge
 
-import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,37 +15,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.edit
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.penny.DayPickerDialog
-import com.example.penny.calculateDaysSince
-import com.example.penny.calculateSavingsFunctional
 import com.example.penny.formatDate
 import com.example.pennychallenge.ui.theme.PennyChallengeTheme
-import java.util.Locale
-import kotlin.math.roundToLong
-
-private const val PIGGY_BANK_PREFS = "piggy_bank_prefs"
-private const val PIGGY_BANK_BALANCE_KEY = "piggy_bank_balance"
-private const val DEFAULT_PIGGY_BANK_BALANCE = 170L
-
-private fun formatCurrencyText(pence: Long): String = String.format(Locale.UK, "%.2f", pence / 100.0)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PennyChallengeTheme() {
+            PennyChallengeTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     PennyChallengePage(
                         modifier = Modifier.padding(innerPadding)
@@ -58,148 +44,96 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PennyChallengePage(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val sharedPreferences = remember(context) {
-        context.getSharedPreferences(PIGGY_BANK_PREFS, Context.MODE_PRIVATE)
-    }
-    val storedPiggyBankBalance = remember(sharedPreferences) {
-        sharedPreferences.getLong(PIGGY_BANK_BALANCE_KEY, DEFAULT_PIGGY_BANK_BALANCE)
-    }
-    var piggyBankBalance by remember { mutableStateOf(storedPiggyBankBalance) }
-    var piggyBankBalanceText by remember {
-        mutableStateOf(formatCurrencyText(storedPiggyBankBalance))
-    }
-    var topUpValue by remember { mutableStateOf(0L) }
-    var topUpValueText by remember { mutableStateOf("0.00") }
-    var withdrawValue by remember { mutableStateOf(0L) }
-    var withdrawValueText by remember { mutableStateOf("0.00") }
-    var showDayPicker by remember { mutableStateOf(false) }
-    val currentTime = System.currentTimeMillis()
-    var selectedDateMillis by remember { mutableStateOf<Long?>(currentTime) }
-    var numberOfDays by remember { mutableStateOf(calculateDaysSince(currentTime)) }
-    var totalPennies by remember {
-        mutableStateOf(
-            calculateSavingsFunctional(
-                calculateDaysSince(
-                    currentTime
-                )
-            )
-        )
-    }
-    val formatCurrencyText = formatCurrencyText(totalPennies - piggyBankBalance)
-    fun updateBalance() {
-        sharedPreferences.edit {
-            putLong(PIGGY_BANK_BALANCE_KEY, piggyBankBalance)
-        }
-        piggyBankBalanceText = formatCurrencyText(piggyBankBalance)
-    }
-    fun topUpBalance() {
-        piggyBankBalance += topUpValue
-        updateBalance()
-    }
- fun withdrawBalance() {
-        piggyBankBalance -= withdrawValue
-        updateBalance()
-    }
+fun PennyChallengePage(
+    modifier: Modifier = Modifier,
+    viewModel: PennyChallengeViewModel = viewModel()
+) {
+    // Collect the single UI state snapshot from the ViewModel
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // --- Date display ---
         Text(
-            text = formatDate(selectedDateMillis),
+            text = formatDate(uiState.selectedDateMillis),
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(16.dp)
         )
 
-        if (selectedDateMillis != null) {
+        if (uiState.selectedDateMillis != null) {
             Text(
-                text = "add today: £${formatCurrencyText(numberOfDays.toLong())}",
+                text = "add today: £${formatCurrencyText(uiState.numberOfDays.toLong())}",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(8.dp)
             )
             Text(
-                text = "expected to date : £${formatCurrencyText(totalPennies)}",
+                text = "expected to date : £${formatCurrencyText(uiState.totalPennies)}",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(8.dp)
             )
         }
 
-        Button(onClick = { showDayPicker = true }) {
+        // --- Day picker ---
+        Button(onClick = viewModel::onShowDayPicker) {
             Text("Pick Day")
         }
+
+        // --- Suggested top-up ---
         Text(
-            text = "suggested top-up: £$formatCurrencyText",
+            text = "suggested top-up: £${viewModel.suggestedTopUpText}",
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(8.dp)
         )
+
+        // --- Top-Up ---
         TextField(
-            value = topUpValueText,
-            onValueChange = { input ->
-                topUpValueText = input
-                val parsed = input.toDoubleOrNull()
-                if (parsed != null) {
-                    topUpValue = (parsed * 100).roundToLong()
-                }
-            },
+            value = uiState.topUpValueText,
+            onValueChange = viewModel::onTopUpTextChanged,
             label = { Text("Top-Up (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.padding(8.dp)
         )
-
-        Button(onClick = ::topUpBalance) {
+        Button(onClick = viewModel::topUpBalance) {
             Text("Top-Up")
         }
+
+        // --- Withdraw ---
         TextField(
-            value = withdrawValueText,
-            onValueChange = { input ->
-                withdrawValueText = input
-                val parsed = input.toDoubleOrNull()
-                if (parsed != null) {
-                    withdrawValue = (parsed * 100).roundToLong()
-                }
-            },
+            value = uiState.withdrawValueText,
+            onValueChange = viewModel::onWithdrawTextChanged,
             label = { Text("Withdraw (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.padding(8.dp)
         )
-
-        Button(onClick = ::withdrawBalance) {
+        Button(onClick = viewModel::withdrawBalance) {
             Text("Withdraw")
         }
+
+        // --- Manual balance edit ---
         TextField(
-            value = piggyBankBalanceText,
-            onValueChange = { input ->
-                piggyBankBalanceText = input
-                val parsed = input.toDoubleOrNull()
-                if (parsed != null) {
-                    piggyBankBalance = (parsed * 100).roundToLong()
-                }
-            },
+            value = uiState.piggyBankBalanceText,
+            onValueChange = viewModel::onBalanceTextChanged,
             label = { Text("Update (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.padding(8.dp)
         )
-
         Text(
-            text = "total balance : £${formatCurrencyText(piggyBankBalance)}",
+            text = "total balance : £${formatCurrencyText(uiState.piggyBankBalance)}",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(8.dp)
         )
 
-
-        if (showDayPicker) {
+        // --- Day Picker Dialog ---
+        if (uiState.showDayPicker) {
             DayPickerDialog(
-                onDismiss = { showDayPicker = false },
+                onDismiss = viewModel::onDayPickerDismissed,
                 onConfirm = { dateMillis ->
-                    selectedDateMillis = dateMillis
-                    numberOfDays = calculateDaysSince(dateMillis)
-                    totalPennies = calculateSavingsFunctional(numberOfDays)
-                    showDayPicker = false
+                    dateMillis?.let { viewModel.onDateSelected(it) }
                 }
             )
         }
@@ -208,9 +142,8 @@ fun PennyChallengePage(modifier: Modifier = Modifier) {
 
 @Preview(showBackground = true)
 @Composable
-
 fun PennyChallengePagePreview() {
-    PennyChallengeTheme() {
+    PennyChallengeTheme {
         PennyChallengePage()
     }
 }
