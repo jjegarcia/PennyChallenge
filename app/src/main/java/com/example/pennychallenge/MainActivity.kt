@@ -8,22 +8,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.penny.DayPickerDialog
-import com.example.penny.calculateDaysSince
-import com.example.penny.calculateSavingsFunctional
 import com.example.penny.formatDate
 import com.example.pennychallenge.ui.theme.PennyChallengeTheme
 
@@ -32,9 +32,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PennyChallengeTheme() {
+            PennyChallengeTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    DayPickerDemo(
+                    PennyChallengePage(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -44,58 +44,96 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun DayPickerDemo(modifier: Modifier = Modifier) {
-    var showDayPicker by remember { mutableStateOf(false) }
-    val currentTime = System.currentTimeMillis()
-    var selectedDateMillis by remember { mutableStateOf<Long?>(currentTime) }
-    var numberOfDays by remember { mutableStateOf(calculateDaysSince(currentTime)) }
-    var totalPennies by remember { mutableStateOf(calculateSavingsFunctional(calculateDaysSince(currentTime))) }
+fun PennyChallengePage(
+    modifier: Modifier = Modifier,
+    viewModel: PennyChallengeViewModel = viewModel()
+) {
+    // Collect the single UI state snapshot from the ViewModel
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // --- Date display ---
         Text(
-            text = formatDate(selectedDateMillis),
+            text = formatDate(uiState.selectedDateMillis),
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(16.dp)
         )
 
-        if (selectedDateMillis != null) {
+        if (uiState.selectedDateMillis != null) {
             Text(
-                text = "Days: $numberOfDays",
+                text = "add today: £${formatCurrencyText(uiState.numberOfDays.toLong())}",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(8.dp)
             )
-
             Text(
-                text = "Total Pennies: $totalPennies",
+                text = "expected to date : £${formatCurrencyText(uiState.totalPennies)}",
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(8.dp)
             )
-
-            Text(
-                text = "Total: £${totalPennies / 100.0}",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(8.dp)
-            )
         }
 
-        Button(onClick = { showDayPicker = true }) {
+        // --- Day picker ---
+        Button(onClick = viewModel::onShowDayPicker) {
             Text("Pick Day")
         }
 
-        if (showDayPicker) {
+        // --- Suggested top-up ---
+        Text(
+            text = "suggested top-up: £${viewModel.suggestedTopUpText}",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(8.dp)
+        )
+
+        // --- Top-Up ---
+        TextField(
+            value = uiState.topUpValueText,
+            onValueChange = viewModel::onTopUpTextChanged,
+            label = { Text("Top-Up (GBP)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.padding(8.dp)
+        )
+        Button(onClick = viewModel::topUpBalance) {
+            Text("Top-Up")
+        }
+
+        // --- Withdraw ---
+        TextField(
+            value = uiState.withdrawValueText,
+            onValueChange = viewModel::onWithdrawTextChanged,
+            label = { Text("Withdraw (GBP)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.padding(8.dp)
+        )
+        Button(onClick = viewModel::withdrawBalance) {
+            Text("Withdraw")
+        }
+
+        // --- Manual balance edit ---
+        TextField(
+            value = uiState.piggyBankBalanceText,
+            onValueChange = viewModel::onBalanceTextChanged,
+            label = { Text("Update (GBP)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.padding(8.dp)
+        )
+        Text(
+            text = "total balance : £${formatCurrencyText(uiState.piggyBankBalance)}",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(8.dp)
+        )
+
+        // --- Day Picker Dialog ---
+        if (uiState.showDayPicker) {
             DayPickerDialog(
-                onDismiss = { showDayPicker = false },
+                onDismiss = viewModel::onDayPickerDismissed,
                 onConfirm = { dateMillis ->
-                    selectedDateMillis = dateMillis
-                    numberOfDays = calculateDaysSince(dateMillis)
-                    totalPennies = calculateSavingsFunctional(numberOfDays)
-                    showDayPicker = false
+                    dateMillis?.let { viewModel.onDateSelected(it) }
                 }
             )
         }
@@ -104,9 +142,8 @@ fun DayPickerDemo(modifier: Modifier = Modifier) {
 
 @Preview(showBackground = true)
 @Composable
-
-fun DayPickerDemoPreview() {
-    PennyChallengeTheme() {
-        DayPickerDemo()
+fun PennyChallengePagePreview() {
+    PennyChallengeTheme {
+        PennyChallengePage()
     }
 }
