@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.penny.calculateDaysSince
 import com.example.penny.calculateSavingsFunctional
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ import kotlin.math.roundToLong
 private const val PIGGY_BANK_PREFS = "piggy_bank_prefs"
 private const val PIGGY_BANK_BALANCE_KEY = "piggy_bank_balance"
 private const val DEFAULT_PIGGY_BANK_BALANCE = 170L
+private const val FIRESTORE_BALANCE_USER = "tin"
 
 // Represents the full UI state as a single immutable snapshot
 data class PennyChallengeUiState(
@@ -46,6 +48,11 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
 
     private val _uiState = MutableStateFlow(buildInitialState())
     val uiState: StateFlow<PennyChallengeUiState> = _uiState.asStateFlow()
+    private val firestore = FirebaseFirestore.getInstance()
+
+    init {
+        syncBalanceFromFirestore()
+    }
 
     // ------------------------------------------------------------------
     // Initialisation
@@ -66,6 +73,43 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
             selectedDateMillis = currentTime,
             numberOfDays = days,
             totalPennies = totalPennies,
+        )
+    }
+
+    private fun syncBalanceFromFirestore() {
+        FirestoreBalanceHelper.fetchBalanceForUser(
+            firestore = firestore,
+            user = FIRESTORE_BALANCE_USER,
+            onSuccess = { remoteBalance ->
+                if (remoteBalance == null) return@fetchBalanceForUser
+                persistBalance(remoteBalance)
+                _uiState.update { state ->
+                    state.copy(
+                        piggyBankBalance = remoteBalance,
+                        piggyBankBalanceText = formatCurrencyText(remoteBalance)
+                    )
+                }
+            },
+            onFailure = {
+                // Keep local/default balance if Firestore is unavailable.
+            }
+        )
+    }
+
+    fun syncStoredBalanceToFirestore() {
+        val storedBalance = sharedPreferences.getLong(
+            PIGGY_BANK_BALANCE_KEY,
+            DEFAULT_PIGGY_BANK_BALANCE
+        )
+
+        FirestoreBalanceHelper.upsertBalanceForUser(
+            firestore = firestore,
+            user = FIRESTORE_BALANCE_USER,
+            balance = storedBalance,
+            onSuccess = {},
+            onFailure = {
+                // Keep local data; a failed exit sync should not affect app flow.
+            }
         )
     }
 
@@ -182,5 +226,10 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
         sharedPreferences.edit {
             putLong(PIGGY_BANK_BALANCE_KEY, balance)
         }
+    }
+
+    override fun onCleared() {
+        syncStoredBalanceToFirestore()
+        super.onCleared()
     }
 }
