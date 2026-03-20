@@ -55,7 +55,9 @@ object FirestoreBalanceHelper {
 				if (document != null) {
 					document.reference.set(payload)
 						.addOnSuccessListener { onSuccess() }
-						.addOnFailureListener(onFailure)
+						.addOnFailureListener(
+							onFailure
+						)
 				} else {
 					firestore.collection(PIGGY_BANK_COLLECTION)
 						.add(payload)

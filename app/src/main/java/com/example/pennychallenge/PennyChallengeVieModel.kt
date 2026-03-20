@@ -82,7 +82,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
             user = FIRESTORE_BALANCE_USER,
             onSuccess = { remoteBalance ->
                 if (remoteBalance == null) return@fetchBalanceForUser
-                persistBalance(remoteBalance)
+                persistBalance(remoteBalance, syncRemote = false)
                 _uiState.update { state ->
                     state.copy(
                         piggyBankBalance = remoteBalance,
@@ -102,13 +102,17 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
             DEFAULT_PIGGY_BANK_BALANCE
         )
 
+        syncBalanceValueToFirestore(storedBalance)
+    }
+
+    private fun syncBalanceValueToFirestore(balance: Long) {
         FirestoreBalanceHelper.upsertBalanceForUser(
             firestore = firestore,
             user = FIRESTORE_BALANCE_USER,
-            balance = storedBalance,
+            balance = balance,
             onSuccess = {},
             onFailure = {
-                // Keep local data; a failed exit sync should not affect app flow.
+                // Keep local data; a failed sync should not affect app flow.
             }
         )
     }
@@ -141,11 +145,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             _uiState.update { state ->
                 val newBalance = state.piggyBankBalance + state.topUpValue
-                persistBalance(newBalance)
-                state.copy(
-                    piggyBankBalance = newBalance,
-                    piggyBankBalanceText = formatCurrencyText(newBalance)
-                )
+                udpateState(newBalance, state)
             }
         }
     }
@@ -169,13 +169,21 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             _uiState.update { state ->
                 val newBalance = state.piggyBankBalance - state.withdrawValue
-                persistBalance(newBalance)
-                state.copy(
-                    piggyBankBalance = newBalance,
-                    piggyBankBalanceText = formatCurrencyText(newBalance)
-                )
+                udpateState(newBalance, state)
             }
         }
+    }
+
+    private fun udpateState(
+        newBalance: Long,
+        state: PennyChallengeUiState
+    ): PennyChallengeUiState {
+        persistBalance(newBalance)
+        syncBalanceValueToFirestore(newBalance)
+        return state.copy(
+            piggyBankBalance = newBalance,
+            piggyBankBalanceText = formatCurrencyText(newBalance)
+        )
     }
 
     // ------------------------------------------------------------------
@@ -185,10 +193,9 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
     fun onBalanceTextChanged(input: String) {
         val parsed = input.toDoubleOrNull()
         _uiState.update { state ->
-            state.copy(
-                piggyBankBalanceText = input,
-                piggyBankBalance = if (parsed != null) (parsed * 100).roundToLong()
-                else state.piggyBankBalance
+            udpateState(
+                newBalance = if (parsed != null) (parsed * 100).roundToLong() else state.piggyBankBalance,
+                state = state
             )
         }
     }
@@ -222,14 +229,14 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
     // Persistence
     // ------------------------------------------------------------------
 
-    private fun persistBalance(balance: Long) {
+    private fun persistBalance(balance: Long, syncRemote: Boolean = true) {
         sharedPreferences.edit {
             putLong(PIGGY_BANK_BALANCE_KEY, balance)
         }
-    }
 
-    override fun onCleared() {
-        syncStoredBalanceToFirestore()
-        super.onCleared()
+        if (syncRemote) {
+            // Start remote sync as soon as value changes instead of waiting for Activity teardown.
+            syncBalanceValueToFirestore(balance)
+        }
     }
 }

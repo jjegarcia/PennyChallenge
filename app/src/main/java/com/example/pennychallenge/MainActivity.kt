@@ -47,9 +47,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onDestroy() {
+    override fun onStop() {
         viewModel.syncStoredBalanceToFirestore()
-        super.onDestroy()
+        super.onStop()
     }
 }
 
