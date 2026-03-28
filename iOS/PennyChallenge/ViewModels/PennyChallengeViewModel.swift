@@ -5,7 +5,7 @@
 //  ViewModel for managing the Penny Challenge UI state and logic
 
 import Foundation
-import Combine
+import UIKit
 
 // MARK: - UI State Model
 struct PennyChallengeUiState: Equatable {
@@ -33,10 +33,8 @@ class PennyChallengeViewModel: ObservableObject {
     @Published var uiState = PennyChallengeUiState()
     
     private let persistenceManager = BalancePersistenceManager.shared
-    private var cancellables = Set<AnyCancellable>()
-    
+
     private let defaultPiggyBankBalance = 17000 // £170.00 in pence
-    private let piggyBankPrefsKey = "piggy_bank_balance"
     
     init() {
         loadInitialState()
@@ -60,18 +58,13 @@ class PennyChallengeViewModel: ObservableObject {
     }
     
     private func setupObservers() {
-        // Save balance to both UserDefaults and Firebase when balance changes
-        NotificationCenter.default.publisher(for: UIApplication.willTerminateNotification)
-            .sink { [weak self] _ in
-                self?.persistBalance()
-            }
-            .store(in: &cancellables)
-        
-        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
-            .sink { [weak self] _ in
-                self?.persistBalance()
-            }
-            .store(in: &cancellables)
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
+            object: nil, queue: .main) { [weak self] _ in self?.persistBalance() }
+
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main) { [weak self] _ in self?.persistBalance() }
     }
     
     // MARK: - Computed Properties
@@ -161,13 +154,7 @@ class PennyChallengeViewModel: ObservableObject {
     
     // MARK: - Persistence
     private func persistBalance() {
-        // Save to UserDefaults (local storage)
         persistenceManager.saveBalance(uiState.piggyBankBalance)
-        
-        // Sync to Firebase asynchronously
-        Task {
-            await persistenceManager.syncToFirebase(balance: uiState.piggyBankBalance)
-        }
     }
     
     deinit {
