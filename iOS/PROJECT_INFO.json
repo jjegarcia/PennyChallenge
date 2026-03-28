@@ -1,0 +1,15 @@
+{
+  "name": "PennyChallenge iOS",
+  "summary": "iOS version of the Penny Challenge app built with SwiftUI",
+  "description": "A financial challenge app that helps users save money by implementing the penny challenge. Users can track their balance, set daily savings targets, and manage their piggy bank.",
+  "features": [
+    "Track piggy bank balance",
+    "Date-based savings calculations",
+    "Top-up and withdraw functionality",
+    "Local persistence with UserDefaults",
+    "Firebase Firestore integration for cloud sync",
+    "SwiftUI-based modern UI",
+    "Background task persistence to ensure data is saved on app termination"
+  ]
+}
+
