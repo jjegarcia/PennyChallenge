@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.penny.calculateDaysSince
 import com.example.penny.calculateSavingsFunctional
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +37,8 @@ fun formatCurrencyText(pence: Long): String =
     String.format(Locale.UK, "%.2f", pence / 100.0)
 
 class PennyChallengeViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val appScope = (application as App).applicationScope
 
     private val sharedPreferences = application.getSharedPreferences(
         PIGGY_BANK_PREFS,
@@ -94,7 +95,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun topUpBalance() {
-        viewModelScope.launch {
+        appScope.launch {
             _uiState.update { state ->
                 val newBalance = state.piggyBankBalance + state.topUpValue
                 persistBalance(newBalance)
@@ -122,7 +123,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun withdrawBalance() {
-        viewModelScope.launch {
+        appScope.launch {
             _uiState.update { state ->
                 val newBalance = state.piggyBankBalance - state.withdrawValue
                 persistBalance(newBalance)
