@@ -95,6 +95,7 @@ fun PennyChallengePage(
             onValueChange = viewModel::onTopUpTextChanged,
             label = { Text("Top-Up (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.padding(8.dp)
         )
         Button(onClick = viewModel::topUpBalance) {
@@ -107,6 +108,7 @@ fun PennyChallengePage(
             onValueChange = viewModel::onWithdrawTextChanged,
             label = { Text("Withdraw (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.padding(8.dp)
         )
         Button(onClick = viewModel::withdrawBalance) {
@@ -119,8 +121,10 @@ fun PennyChallengePage(
             onValueChange = viewModel::onBalanceTextChanged,
             label = { Text("Update (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.padding(8.dp)
         )
+        
         Text(
             text = "total balance : £${formatCurrencyText(uiState.piggyBankBalance)}",
             style = MaterialTheme.typography.headlineMedium,
