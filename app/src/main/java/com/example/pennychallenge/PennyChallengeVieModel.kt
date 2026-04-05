@@ -88,9 +88,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
         _uiState.update { state ->
             state.copy(
                 topUpValueText = input,
-                topUpValue = if (parsed != null) (parsed * 100).roundToLong()
-                else state.topUpValue
-            )
+                topUpValue = parsed?.times(100)?.roundToLong() ?: state.topUpValue            )
         }
     }
 
@@ -116,8 +114,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
         _uiState.update { state ->
             state.copy(
                 withdrawValueText = input,
-                withdrawValue = if (parsed != null) (parsed * 100).roundToLong()
-                else state.withdrawValue
+                withdrawValue =  parsed?.times(100)?.roundToLong() ?: state.withdrawValue
             )
         }
     }
@@ -144,8 +141,7 @@ class PennyChallengeViewModel(application: Application) : AndroidViewModel(appli
         _uiState.update { state ->
             state.copy(
                 piggyBankBalanceText = input,
-                piggyBankBalance = if (parsed != null) (parsed * 100).roundToLong()
-                else state.piggyBankBalance
+                piggyBankBalance =  (parsed?.times(100))?.roundToLong() ?: state.piggyBankBalance
             )
         }
     }
