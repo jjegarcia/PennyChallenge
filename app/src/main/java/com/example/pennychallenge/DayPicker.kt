@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.div
+import kotlin.text.toInt
 
 /**
  * A reusable Day Picker Dialog component using Material3 DatePicker
@@ -82,20 +84,20 @@ fun calculateSavingsFunctional(days: Int): Long {
  * @return Number of days from January 1st of current year to selected date (inclusive)
  */
 fun calculateDaysSince(selectedDate: Long?): Int {
-    if (selectedDate == null) return 0
+    val dateMillis = selectedDate ?: return 0
 
     val calendar = java.util.Calendar.getInstance()
-    calendar.timeInMillis = selectedDate
+    calendar.timeInMillis = dateMillis
 
-    // Get January 1st of the same year as the selected date
+// Get January 1st of the same year as the selected date
     val startOfYear = java.util.Calendar.getInstance()
     startOfYear.set(calendar.get(java.util.Calendar.YEAR), 0, 1, 0, 0, 0)
     startOfYear.set(java.util.Calendar.MILLISECOND, 0)
 
-    val diffInMillis = selectedDate - startOfYear.timeInMillis
+    val diffInMillis = dateMillis - startOfYear.timeInMillis
     val daysDiff = (diffInMillis / (1000 * 60 * 60 * 24)).toInt()
 
-    // Add 1 to make it inclusive (day 1 is January 1st itself)
+// Add 1 to make it inclusive (day 1 is January 1st itself)
     return daysDiff + 1
 }
 
