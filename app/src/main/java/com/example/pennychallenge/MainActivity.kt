@@ -78,7 +78,7 @@ fun PennyChallengePage(
         }
 
         // --- Day picker ---
-        Button(onClick = viewModel::onShowDayPicker) {
+        Button(onClick = { viewModel.onShowDayPicker() }) {
             Text("Pick Day")
         }
 
@@ -92,39 +92,39 @@ fun PennyChallengePage(
         // --- Top-Up ---
         TextField(
             value = uiState.topUpValueText,
-            onValueChange = viewModel::onTopUpTextChanged,
+            onValueChange = { value -> viewModel.onTopUpTextChanged(value) },
             label = { Text("Top-Up (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.padding(8.dp)
         )
-        Button(onClick = viewModel::topUpBalance) {
+        Button(onClick = { viewModel.topUpBalance() }) {
             Text("Top-Up")
         }
 
         // --- Withdraw ---
         TextField(
             value = uiState.withdrawValueText,
-            onValueChange = viewModel::onWithdrawTextChanged,
+            onValueChange = { value -> viewModel.onWithdrawTextChanged(value) },
             label = { Text("Withdraw (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.padding(8.dp)
         )
-        Button(onClick = viewModel::withdrawBalance) {
+        Button(onClick = { viewModel.withdrawBalance() }) {
             Text("Withdraw")
         }
 
         // --- Manual balance edit ---
         TextField(
             value = uiState.piggyBankBalanceText,
-            onValueChange = viewModel::onBalanceTextChanged,
+            onValueChange = { value -> viewModel.onBalanceTextChanged(value) },
             label = { Text("Update (GBP)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
             modifier = Modifier.padding(8.dp)
         )
-        
+
         Text(
             text = "total balance : £${formatCurrencyText(uiState.piggyBankBalance)}",
             style = MaterialTheme.typography.headlineMedium,
@@ -135,7 +135,7 @@ fun PennyChallengePage(
         // --- Day Picker Dialog ---
         if (uiState.showDayPicker) {
             DayPickerDialog(
-                onDismiss = viewModel::onDayPickerDismissed,
+                onDismiss = { viewModel.onDayPickerDismissed() },
                 onConfirm = { dateMillis ->
                     dateMillis?.let { viewModel.onDateSelected(it) }
                 }
